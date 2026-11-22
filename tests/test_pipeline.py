@@ -98,3 +98,23 @@ def test_bad_file_does_not_stop_pipeline(fresh):
     assert out["estado"] == "con_advertencias"
     assert any("Faltan columnas requeridas" in e for e in out["errores"])
     assert all(p["estado"] == "ok" for p in out["pasos"])
+
+
+def test_reject_reasons_match_quality_after_reprocessing(fresh):
+    """Reprocesar no duplica los motivos de rechazo: coinciden con el total de la tabla de calidad."""
+    c = fresh["conn"]
+    pipeline.run(trigger="test", force=True, conn=c)
+    assert int(quality.reject_reasons(c)["registros"].sum()) == int(quality.by_source(c)["rechazados"].sum())
+
+
+def test_regional_level_filter_applies_to_technology(loaded):
+    """F55: el filtro de nivel educativo también filtra conectividad y dispositivos."""
+    from edualerta.services import regional, tech
+    c = loaded["conn"]
+    rules = sql.get_rules(c)
+    periodo = sql.periods(c)[-1]
+    _, nat = regional.region_table(c, periodo, rules, niveles_educativos=["media"])
+    res = tech.resources_frame(c, periodo, rules)
+    nivel = dict(c.execute("SELECT codigo, nivel FROM centros").fetchall())
+    media = res[res["centro_codigo"].map(nivel) == "media"]
+    assert nat["conectividad_pct"] == round(media["tiene_internet"].mean() * 100, 1)

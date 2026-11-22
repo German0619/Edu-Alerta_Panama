@@ -181,6 +181,8 @@ def register_decision(db: Database, rec_id, accion: str, responsable: str, justi
         raise ValueError(f"Acción debe ser una de {list(ACCIONES)}")
     if not responsable.strip() or len(justificacion.strip()) < 10:
         raise ValueError("Indique responsable y una justificación (mínimo 10 caracteres).")
+    if fecha_revision and fecha_revision < date.today():
+        raise ValueError("La fecha de revisión no puede estar en el pasado.")
     if accion == "aprobar" and not riesgos:
         raise ValueError("Para aprobar debe evaluar al menos un riesgo con su control de mitigación.")
     clean_risks = []

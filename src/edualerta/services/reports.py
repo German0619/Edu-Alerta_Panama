@@ -5,6 +5,7 @@ from datetime import datetime
 
 import pandas as pd
 from fpdf import FPDF
+from fpdf.fonts import FontFace
 
 _REPLACE = {"≥": ">=", "≤": "<=", "−": "-", "→": "->", "Δ": "Var.", "·": "-", "✔": "Si", "—": "-", "–": "-",
             "“": '"', "”": '"', "’": "'"}
@@ -32,24 +33,22 @@ class _PDF(FPDF):
 
 
 def _table(pdf: _PDF, df: pd.DataFrame, widths: list[float] | None = None, max_rows: int = 40):
+    """Tabla con ajuste de línea (no recorta fórmulas ni títulos); anchos proporcionales al contenido."""
     if df.empty:
         pdf.set_font("Helvetica", "I", 9)
         pdf.cell(0, 6, _t("Sin registros."), new_x="LMARGIN", new_y="NEXT")
         return
     cols = list(df.columns)
-    widths = widths or [pdf.epw / len(cols)] * len(cols)
-    pdf.set_font("Helvetica", "B", 8)
-    pdf.set_fill_color(230, 236, 240)
-    for c, w in zip(cols, widths):
-        pdf.cell(w, 6, _t(c)[:40], border=1, fill=True)
-    pdf.ln()
+    if not widths:
+        lens = [max(len(_t(c)), int(df[c].head(max_rows).map(lambda v: len(_t(v))).max() or 0)) for c in cols]
+        widths = [min(max(n, 6), 70) for n in lens]
     pdf.set_font("Helvetica", "", 8)
-    for row in df.head(max_rows).itertuples(index=False):
-        for v, w in zip(row, widths):
-            txt = _t(v)
-            limit = int(w / 1.7)
-            pdf.cell(w, 5.5, txt if len(txt) <= limit else txt[: limit - 3] + "...", border=1)
-        pdf.ln()
+    pdf.set_draw_color(190, 198, 204)
+    with pdf.table(col_widths=tuple(widths), width=pdf.epw, line_height=4.6, text_align="LEFT",
+                   headings_style=FontFace(emphasis="BOLD", fill_color=(230, 236, 240))) as table:
+        table.row([_t(c) for c in cols])
+        for rec in df.head(max_rows).itertuples(index=False):
+            table.row([_t(v) for v in rec])
 
 
 def executive_pdf(titulo: str, filtros: dict, kpis: dict, tablas: dict[str, pd.DataFrame]) -> bytes:
@@ -65,7 +64,7 @@ def executive_pdf(titulo: str, filtros: dict, kpis: dict, tablas: dict[str, pd.D
     pdf.cell(0, 7, "Indicadores clave", new_x="LMARGIN", new_y="NEXT")
     rows = [{"KPI": k["nombre"], "Valor": "N/D" if k["valor"] is None else f"{k['valor']} {k['unidad']}",
              "Fórmula": k["formula"], "Fuente": k["fuente"]} for k in kpis.values()]
-    _table(pdf, pd.DataFrame(rows), [45, 25, 70, 50])
+    _table(pdf, pd.DataFrame(rows), [42, 22, 76, 50])
     for name, df in tablas.items():
         pdf.ln(4)
         pdf.set_font("Helvetica", "B", 11)

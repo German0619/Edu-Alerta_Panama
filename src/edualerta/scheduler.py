@@ -10,6 +10,7 @@ import signal
 import time
 from datetime import datetime, timedelta
 
+from edualerta import datagen
 from edualerta.db import sql
 from edualerta.etl import pipeline
 
@@ -37,6 +38,10 @@ def _heartbeat(next_run: datetime) -> None:
 def main() -> None:
     signal.signal(signal.SIGTERM, _handle)
     signal.signal(signal.SIGINT, _handle)
+    # La carga base (data/raw) no está en un volumen compartido: cada contenedor genera la suya. El generador es
+    # determinista, así que las huellas coinciden con las de la app y lo ya procesado se omite sin duplicar.
+    if datagen.ensure_generated():
+        log.info("Carga base sintética generada en este contenedor.")
     last_run = datetime.now()
     announced = None
     log.info("Scheduler iniciado (intervalo %s min).", interval_minutes())

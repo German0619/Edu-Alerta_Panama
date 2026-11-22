@@ -39,8 +39,16 @@ def rejects(conn: sqlite3.Connection, limit: int = 1000) -> pd.DataFrame:
 
 
 def reject_reasons(conn: sqlite3.Connection) -> pd.DataFrame:
-    return sql.query_df(conn, "SELECT fuente, motivo, COUNT(*) AS registros FROM rechazos_etl "
-                              "GROUP BY fuente, motivo ORDER BY registros DESC")
+    """Motivos de rechazo de la versión vigente de cada archivo (mismo criterio que `by_source`).
+
+    Reprocesar un archivo vuelve a registrar sus rechazos en una nueva ejecución; sumar el historial completo
+    contaría dos veces el mismo registro defectuoso.
+    """
+    return sql.query_df(conn, """SELECT r.fuente, r.motivo, COUNT(*) AS registros
+        FROM rechazos_etl r
+        JOIN archivos_procesados a
+          ON a.ejecucion_id = r.ejecucion_id AND a.archivo = r.archivo AND a.fuente = r.fuente
+        GROUP BY r.fuente, r.motivo ORDER BY registros DESC""")
 
 
 def coverage(conn: sqlite3.Connection) -> pd.DataFrame:

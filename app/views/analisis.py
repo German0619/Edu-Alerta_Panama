@@ -11,9 +11,9 @@ from edualerta.services import indicators, kpi, regional, segmentation, tech
 u = common.guard("analisis")
 conn = common.conn()
 rules = sql.get_rules(conn)
-f = common.sidebar_filters()
 
 common.header("Análisis", "Tendencias entre períodos y cruces entre rendimiento, tecnología y región.")
+f = common.filters_bar()
 if not f["periodo"]:
     st.stop()
 
@@ -74,7 +74,9 @@ with t2:
     p1 = b.selectbox("Comparar con", per, index=per.index(f["periodo"]))
     i0 = indicators.indicator_frame(conn, p0, f["regiones"], f["centros"], f["grados"])
     i1 = indicators.indicator_frame(conn, p1, f["regiones"], f["centros"], f["grados"])
-    if i0.empty or i1.empty:
+    if p0 == p1:
+        common.empty("Elija dos períodos distintos para comparar.", "Por ejemplo, el trimestre anterior como base.")
+    elif i0.empty or i1.empty:
         common.empty("Sin datos para alguno de los períodos.")
     else:
         k0 = kpi.compute(conn, None, p0, rules, f["regiones"], f["centros"], f["grados"])

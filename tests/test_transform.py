@@ -83,3 +83,15 @@ def test_invalid_json_raises_source_error():
     import pytest
     with pytest.raises(extract.SourceError):
         extract.preview(b"{no es json", {"formato": "json", "requeridas": []})
+
+
+def test_observations_optional_author_role_is_filled():
+    """Un JSON donde solo algunos documentos traen autor_rol no debe guardar NaN en MongoDB."""
+    df = pd.DataFrame([
+        {"id": "A", "estudiante_codigo": "E-0001", "fecha": "2025-03-10", "tipo": "Diagnostico", "texto": "x"},
+        {"id": "B", "estudiante_codigo": "E-0002", "fecha": "2025-03-11", "tipo": "intervencion", "texto": "y",
+         "autor_rol": "orientador"},
+    ])
+    recs = transform.clean_observaciones(transform.Batch(df, "seguimiento_historico", "s.json"), ref())
+    assert [r["autor_rol"] for r in recs] == ["docente", "orientador"]
+    assert recs[0]["tipo"] == "diagnostico"

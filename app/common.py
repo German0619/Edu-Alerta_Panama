@@ -1,7 +1,7 @@
 """Utilidades compartidas de la interfaz: sesión, permisos, filtros, sistema visual y componentes.
 
 Sistema visual "pizarra y tiza":
-  pizarra  #183A34  barra lateral y titulares (pizarrón escolar)
+  pizarra  #183A34  barra de navegación superior y titulares (pizarrón escolar)
   tiza     #EEF2F0  superficies secundarias
   cobalto  #1D5FA8  acciones (tinta de bolígrafo)
   semáforo #C62E2E / #D68A00 / #2F8A5B  reservado a niveles de riesgo y necesidad
@@ -58,7 +58,8 @@ CSS = f"""
 /* tipografía */
 .stApp, .stApp *:not([data-testid="stIconMaterial"]):not(code):not(pre) {{ font-family: {FONT_BODY}; }}
 .stApp [data-testid="stIconMaterial"], .stApp [data-testid="stAlertDynamicIcon"],
-.stApp [data-testid="stAlertDynamicIcon"] * {{ font-family: "Material Symbols Rounded" !important; }}
+.stApp [data-testid="stAlertDynamicIcon"] *, .stApp [data-testid^="stExpanderIcon"] {{
+    font-family: "Material Symbols Rounded" !important; }}
 .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5,
 .stApp [data-testid="stMetricValue"] div, .edu-num {{ font-family: {FONT_HEAD} !important; }}
 .stApp h1 {{ font-size: 2.15rem; font-weight: 700; letter-spacing: -0.02em; color: var(--edu-slate);
@@ -69,44 +70,22 @@ CSS = f"""
 .stApp p, .stApp li {{ line-height: 1.55; }}
 
 /* lienzo */
-header[data-testid="stHeader"] {{ background: transparent; }}
 [data-testid="stDecoration"] {{ display: none; }}
 .block-container {{ padding-top: 2.4rem; padding-bottom: 4rem; max-width: 1320px; }}
 [data-testid="stToolbar"] {{ right: 1rem; }}
 
-/* barra lateral pizarra */
-[data-testid="stSidebar"] {{ background: var(--edu-slate); }}
-[data-testid="stSidebar"] * {{ color: #E8EFEB; }}
-[data-testid="stSidebarNav"] {{ padding: 0 .6rem; }}
-[data-testid="stSidebarNav"] a {{ border-radius: 6px; margin: 1px 0; padding-left: .7rem; }}
-[data-testid="stSidebarNav"] a:hover {{ background: rgba(255,255,255,.07); }}
-[data-testid="stSidebarNav"] a[aria-current="page"] {{ background: rgba(255,255,255,.12);
-    box-shadow: inset 3px 0 0 #9CC7F0; }}
-[data-testid="stSidebarNav"] a span {{ font-size: .95rem; }}
-[data-testid="stSidebarNav"] [data-testid="stIconMaterial"] {{ color: #A9C3B9; }}
-[data-testid="stSidebarNavSeparator"] {{ border-color: rgba(255,255,255,.14); }}
-[data-testid="stSidebar"] hr {{ border-color: rgba(255,255,255,.14); margin: .9rem 0; }}
-[data-testid="stSidebar"] [data-testid="stWidgetLabel"] p {{ color: #BFD1C9; font-size: .85rem; }}
-[data-testid="stSidebar"] [data-baseweb="select"] > div {{ background: rgba(255,255,255,.08);
-    border-color: rgba(255,255,255,.18); }}
-[data-testid="stSidebar"] [data-baseweb="select"] input {{ color: #fff; }}
-[data-testid="stSidebar"] [data-baseweb="tag"] {{ background: #2C6152; }}
-[data-testid="stSidebar"] .stButton button {{ background: transparent; border-color: rgba(255,255,255,.25); }}
-[data-testid="stSidebar"] .stButton button:hover {{ border-color: #9CC7F0; }}
-[data-testid="stSidebarCollapseButton"] *, [data-testid="stSidebarCollapsedControl"] * {{ color: #E8EFEB; }}
-.edu-filters-title {{ font-family: {FONT_HEAD} !important; font-size: 1rem; font-weight: 650;
-    margin: .2rem 0 .4rem; color: #fff !important; }}
-.edu-user {{ display: flex; gap: .7rem; align-items: center; padding: .2rem 0 .7rem; }}
-.edu-user .av {{ width: 38px; height: 38px; border-radius: 50%; background: #2C6152; display: grid;
-    place-items: center; font-weight: 700; color: #fff; flex: none; }}
-.edu-user .nm {{ font-weight: 700; line-height: 1.2; }}
-.edu-user .rl {{ font-size: .8rem; color: #BFD1C9 !important; line-height: 1.3; }}
-[data-testid="stSidebarNav"]::before {{ content: "EDU-ALERTA Panamá"; display: block;
-    font-family: {FONT_HEAD}; font-weight: 800; font-size: 1.15rem; color: #fff; letter-spacing: -.01em;
-    padding: 0 .7rem .9rem; }}
-[data-testid="stSidebarHeader"] {{ height: 2.2rem; }}
-.edu-brand {{ font-family: {FONT_HEAD} !important; font-weight: 800; font-size: 1.15rem; color: #fff !important;
-    letter-spacing: -.01em; padding: .2rem 0 .1rem; }}
+/* filtros globales: franja tiza bajo el encabezado */
+.st-key-edu_filters {{ background: var(--edu-chalk); border-radius: 10px; padding: .55rem 1rem .75rem;
+    margin: -.5rem 0 1.4rem; }}
+.st-key-edu_filters [data-testid="stWidgetLabel"] p {{ font-size: .8rem; color: var(--edu-muted); }}
+.st-key-edu_filters [data-baseweb="select"] > div {{ background: #fff; border-color: var(--edu-line); }}
+
+/* menú de usuario (popover de la barra superior) */
+.edu-user {{ display: flex; gap: .7rem; align-items: center; padding: .1rem 0 .8rem; min-width: 230px; }}
+.edu-user .av {{ width: 40px; height: 40px; border-radius: 50%; background: var(--edu-slate); display: grid;
+    place-items: center; font-family: {FONT_HEAD} !important; font-weight: 700; color: #fff; flex: none; }}
+.edu-user .nm {{ font-weight: 700; line-height: 1.2; color: var(--edu-ink); }}
+.edu-user .rl {{ font-size: .82rem; color: var(--edu-muted); line-height: 1.3; }}
 
 /* encabezado de página */
 .edu-head {{ display: flex; justify-content: space-between; align-items: flex-start; gap: 1.5rem;
@@ -126,9 +105,18 @@ header[data-testid="stHeader"] {{ background: transparent; }}
 .edu-kpi {{ padding: .85rem 1rem .9rem; border-left: 1px solid var(--edu-line); }}
 .edu-kpi:first-child {{ border-left: none; padding-left: .1rem; }}
 .edu-kpi .lbl {{ font-size: .85rem; color: var(--edu-muted); display: flex; gap: .3rem; align-items: center;
-    min-height: 2.4em; line-height: 1.2; }}
+    min-height: 2.4em; line-height: 1.2; position: relative; }}
 .edu-kpi .lbl .q {{ cursor: help; border: 1px solid var(--edu-line); border-radius: 50%; width: 16px; height: 16px;
     font-size: .7rem; display: inline-grid; place-items: center; color: var(--edu-muted); flex: none; }}
+.edu-kpi .lbl .q:hover, .edu-kpi .lbl .q:focus-visible {{ border-color: var(--edu-cobalt); color: var(--edu-cobalt);
+    outline: none; }}
+.edu-kpi .lbl .q::after {{ content: attr(data-tip); position: absolute; bottom: calc(100% + 6px); left: 0; right: 0;
+    min-width: 230px; z-index: 30; background: var(--edu-slate); color: #fff; font-size: .82rem; font-weight: 400;
+    line-height: 1.45; text-align: left; white-space: normal; padding: .6rem .75rem; border-radius: 6px;
+    box-shadow: 0 8px 20px rgba(24,58,52,.22); opacity: 0; visibility: hidden; pointer-events: none;
+    transition: opacity .12s ease, visibility .12s; }}
+.edu-kpi:last-child .lbl .q::after {{ left: auto; }}
+.edu-kpi .lbl .q:hover::after, .edu-kpi .lbl .q:focus::after {{ opacity: 1; visibility: visible; }}
 .edu-kpi .val {{ font-family: {FONT_HEAD} !important; font-size: 1.9rem; font-weight: 650; color: var(--edu-ink);
     line-height: 1.1; font-variant-numeric: tabular-nums; margin-top: .25rem; }}
 .edu-kpi .val small {{ font-size: .95rem; font-weight: 500; color: var(--edu-muted); margin-left: .15rem; }}
@@ -140,6 +128,8 @@ header[data-testid="stHeader"] {{ background: transparent; }}
   .edu-kpi, .edu-kpi:first-child {{ border-left: none; padding-left: .1rem; }}
   .edu-kpi:nth-child(even) {{ border-left: 1px solid var(--edu-line); padding-left: .9rem; }}
   .edu-kpi:nth-child(n+3) {{ border-top: 1px solid var(--edu-line); }}
+  .edu-kpi:nth-child(odd) .lbl .q::after {{ left: 0; right: auto; }}
+  .edu-kpi:nth-child(even) .lbl .q::after {{ left: auto; right: 0; }}
 }}
 @container (max-width: 300px) {{
   .edu-kpis {{ grid-template-columns: 1fr; }}
@@ -407,7 +397,9 @@ def kpi_band(items: list[dict], group: str | None = None):
     """Franja de indicadores. item: label, value, unit, delta (str), good (bool|None), help."""
     cells = []
     for it in items:
-        help_ = f'<span class="q" title="{esc(it["help"])}">?</span>' if it.get("help") else ""
+        # Tooltip propio (no `title`): aparece al instante con el cursor, con Tab o al tocarlo en pantallas táctiles.
+        help_ = (f'<span class="q" tabindex="0" role="img" aria-label="Cómo se calcula: {esc(it["help"])}" '
+                 f'data-tip="{esc(it["help"])}">?</span>') if it.get("help") else ""
         unit = f'<small>{esc(it["unit"])}</small>' if it.get("unit") else ""
         dl = ""
         if it.get("delta"):
@@ -565,30 +557,32 @@ def guard(pagina: str) -> dict:
 
 
 # ----------------------------------------------------------------- filtros globales (F05, F60)
-def sidebar_filters(show_grade: bool = True) -> dict:
+def filters_bar(show_grade: bool = True) -> dict:
+    """Franja de filtros bajo el encabezado de la pantalla; los valores se conservan entre pantallas."""
     c = conn()
     periods = sql.periods(c)
     if not periods:
-        st.sidebar.info("Aún no hay indicadores. Ejecute el pipeline en Datos y ETL.")
+        st.info("Aún no hay indicadores. Ejecute el pipeline en Datos y ETL.", icon=":material/info:")
         return {"periodo": None, "regiones": [], "centros": [], "grados": []}
     reg = sql.query_df(c, "SELECT codigo, nombre FROM regiones ORDER BY nombre")
     cen = sql.query_df(c, "SELECT codigo, nombre, region_codigo FROM centros ORDER BY codigo")
-    st.sidebar.markdown('<div class="edu-filters-title">Filtros</div>', unsafe_allow_html=True)
     if st.session_state.get("f_periodo") not in periods:
         st.session_state["f_periodo"] = periods[-1]
-    periodo = st.sidebar.selectbox("Período", periods[::-1], key="f_periodo")
     reg_map = dict(zip(reg["codigo"], reg["nombre"]))
     st.session_state["f_regiones"] = [x for x in st.session_state.get("f_regiones", []) if x in reg_map]
-    regiones = st.sidebar.multiselect("Región", list(reg_map), format_func=lambda x: reg_map[x], key="f_regiones",
-                                      placeholder="Todas")
-    cen_opts = cen[cen["region_codigo"].isin(regiones)] if regiones else cen
-    cen_map = dict(zip(cen_opts["codigo"], cen_opts["codigo"] + " " + cen_opts["nombre"].str.replace(
-        "Centro Educativo ", "", regex=False)))
-    st.session_state["f_centros"] = [x for x in st.session_state.get("f_centros", []) if x in cen_map]
-    centros = st.sidebar.multiselect("Centro educativo", list(cen_map), format_func=lambda x: cen_map[x],
-                                     placeholder="Todos", key="f_centros")
-    grados = st.sidebar.multiselect("Grado", list(range(7, 13)), key="f_grados", placeholder="Todos",
-                                    format_func=lambda g: f"{g}.º") if show_grade else []
+    with st.container(key="edu_filters"):
+        cols = st.columns([1, 1.7, 2.5, 1.2] if show_grade else [1, 1.9, 2.9], vertical_alignment="bottom")
+        periodo = cols[0].selectbox("Período", periods[::-1], key="f_periodo")
+        regiones = cols[1].multiselect("Región", list(reg_map), format_func=lambda x: reg_map[x],
+                                       key="f_regiones", placeholder="Todas")
+        cen_opts = cen[cen["region_codigo"].isin(regiones)] if regiones else cen
+        cen_map = dict(zip(cen_opts["codigo"], cen_opts["codigo"] + " " + cen_opts["nombre"].str.replace(
+            "Centro Educativo ", "", regex=False)))
+        st.session_state["f_centros"] = [x for x in st.session_state.get("f_centros", []) if x in cen_map]
+        centros = cols[2].multiselect("Centro educativo", list(cen_map), format_func=lambda x: cen_map[x],
+                                      placeholder="Todos", key="f_centros")
+        grados = cols[3].multiselect("Grado", list(range(7, 13)), key="f_grados", placeholder="Todos",
+                                     format_func=lambda g: f"{g}.º") if show_grade else []
     return {"periodo": periodo, "regiones": regiones, "centros": centros, "grados": grados}
 
 
@@ -616,3 +610,13 @@ def csv_button(df: pd.DataFrame, filename: str, label: str = "Descargar CSV", ke
 def last_run_banner():
     """Compatibilidad: el estado de los datos ahora se muestra en el encabezado (header)."""
     return None
+
+
+def student_code(text: str | None) -> str:
+    """Normaliza un código escrito a mano igual que el ETL ('e42', 'E_42', ' e-0042 ' → 'E-0042').
+
+    Si el texto no es un código completo (p. ej. '004'), lo devuelve en mayúsculas para búsquedas parciales.
+    """
+    from edualerta.etl import transform
+    t = (text or "").strip()
+    return transform.norm_student(pd.Series([t])).iloc[0] or t.upper()

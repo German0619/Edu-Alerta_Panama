@@ -90,18 +90,24 @@ with t_flow:
                      use_container_width=True):
             with st.status("Ejecutando pipeline…", expanded=True) as status:
                 before = sql.table_counts(conn)
-                out = pipeline.run(trigger="manual", usuario=u["usuario"], force=force)
+                out = pipeline.run(trigger="manual", usuario=u["usuario"], force=force, perfil=u["perfil"])
                 after = sql.table_counts(conn)
                 for p in out.get("pasos", []):
                     st.write(("✓ " if p["estado"] == "ok" else "✗ ") + f"{p['paso']} ({p['segundos']} s)")
                 status.update(label=f"Ejecución n.º {out.get('id')}: {out['estado'].replace('_', ' ')}",
                               state="error" if out["estado"] == "fallida" else "complete", expanded=False)
             st.session_state["last_run"] = {"out": out, "before": before, "after": after}
+            st.rerun()  # el encabezado y la cola se dibujaron antes de ejecutar: se actualizan con la nueva corrida
         if not can_run:
             common.note("La ejecución manual está reservada al perfil Tecnología.")
         lr = st.session_state.get("last_run")
         if lr:
             out = lr["out"]
+            failed = out["estado"] == "fallida"
+            with st.expander(f"Ejecución n.º {out.get('id')}: {out['estado'].replace('_', ' ')}",
+                             icon=":material/error:" if failed else ":material/check_circle:"):
+                for p in out.get("pasos", []):
+                    st.write(("✓ " if p["estado"] == "ok" else "✗ ") + f"{p['paso']} ({p['segundos']} s)")
             common.facts([{"k": "Leídos", "v": f"{out.get('leidos', 0):,}".replace(",", " ")},
                           {"k": "Aceptados", "v": f"{out.get('aceptados', 0):,}".replace(",", " ")},
                           {"k": "Rechazados", "v": out.get("rechazados", 0), "good": False if out.get("rechazados") else None},
@@ -194,7 +200,10 @@ with t_maes:
             with st.expander("Registrar centro educativo"):
                 with st.form("f_centro", clear_on_submit=True):
                     a, b = st.columns(2)
-                    codigo = a.text_input("Código", masters.next_center_code(conn))
+                    # El valor inicial debe ser fijo: si cambiara tras cada alta, Streamlit trataría el campo como
+                    # uno nuevo al enviar y descartaría lo escrito. El código sugerido va como placeholder.
+                    sugerido = masters.next_center_code(conn)
+                    codigo = a.text_input("Código", placeholder=f"{sugerido} (si se deja vacío)") or sugerido
                     nombre = b.text_input("Nombre")
                     region = a.selectbox("Región", list(reg_map), format_func=reg_map.get)
                     zona = b.selectbox("Zona", ["urbana", "rural"])
@@ -226,7 +235,8 @@ with t_maes:
             e1, e2 = st.columns(2, gap="large")
             with e1.expander("Registrar estudiante ficticio"):
                 with st.form("f_est", clear_on_submit=True):
-                    codigo = st.text_input("Código anónimo", masters.next_student_code(conn))
+                    sugerido = masters.next_student_code(conn)
+                    codigo = st.text_input("Código anónimo", placeholder=f"{sugerido} (si se deja vacío)") or sugerido
                     a, b = st.columns(2)
                     genero = a.selectbox("Género", ["F", "M"])
                     anio = b.number_input("Año de nacimiento", 1995, 2020, 2011)
@@ -264,10 +274,13 @@ with t_maes:
                     a, b = st.columns(2)
                     anio = a.number_input("Año", 2020, 2035, date.today().year)
                     tri = b.selectbox("Trimestre", [1, 2, 3])
-                    di, df_ = masters.default_period_dates(int(anio), int(tri))
-                    ini = a.date_input("Inicio", di, format="DD/MM/YYYY")
-                    fin = b.date_input("Fin", df_, format="DD/MM/YYYY")
+                    # Sin valor inicial dinámico (ver nota del formulario de centros): vacías = fechas sugeridas.
+                    ini = a.date_input("Inicio", None, format="DD/MM/YYYY")
+                    fin = b.date_input("Fin", None, format="DD/MM/YYYY")
+                    common.note("Si deja las fechas vacías se usa el calendario sugerido para ese trimestre.")
                     if st.form_submit_button("Guardar período", type="primary"):
+                        di, df_ = masters.default_period_dates(int(anio), int(tri))
+                        ini, fin = ini or di, fin or df_
                         try:
                             masters.save(conn, "periodos", {"codigo": f"{anio}-T{tri}", "anio": anio, "trimestre": tri,
                                                             "fecha_inicio": ini.isoformat(),

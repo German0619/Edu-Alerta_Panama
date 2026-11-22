@@ -78,6 +78,6 @@ def test_filter_changes_kpis(loaded):
         return next(m.value for m in at.markdown if "Tasa de asistencia" in m.value)
 
     before = band()
-    at.sidebar.multiselect(key="f_centros").set_value(["CE-005"]).run()
+    at.multiselect(key="f_centros").set_value(["CE-005"]).run()
     assert not at.exception
     assert band() != before

@@ -303,8 +303,8 @@ def clean_observaciones(b: Batch, ref: RefData) -> list[dict]:
     b.dedupe(["id"])
     out = b.df.copy()
     out["fecha"] = out["fecha"].dt.strftime("%Y-%m-%d")
-    if "autor_rol" not in out:
-        out["autor_rol"] = "docente"
+    # autor_rol es opcional: puede faltar la columna completa o solo en algunos documentos del JSON
+    out["autor_rol"] = out["autor_rol"].fillna("docente") if "autor_rol" in out else "docente"
     return out[["id", "estudiante_codigo", "fecha", "tipo", "texto", "autor_rol"]].to_dict("records")
 
 

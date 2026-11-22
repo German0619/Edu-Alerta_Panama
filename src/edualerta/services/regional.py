@@ -49,6 +49,9 @@ def region_table(conn: sqlite3.Connection, periodo: str, rules: dict, zonas=None
         res = res[res["centro_codigo"].isin(centros)] if not res.empty else res
     if zonas and not res.empty:
         res = res[res["zona"].isin(zonas)]
+    if niveles_educativos and not res.empty:  # el filtro de nivel también aplica a conectividad y dispositivos
+        nivel = dict(conn.execute("SELECT codigo, nivel FROM centros").fetchall())
+        res = res[res["centro_codigo"].map(nivel).isin(niveles_educativos)]
     if not res.empty:
         t = res.groupby("region_codigo").agg(centros_internet=("tiene_internet", "sum"),
                                               centros_evaluados=("tiene_internet", "count"),

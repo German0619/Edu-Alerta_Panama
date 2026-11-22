@@ -137,7 +137,7 @@ def process_source(conn, source: dict, run_id: int, force: bool) -> dict:
 
 
 def run(trigger: str = "manual", usuario: str = "sistema", force: bool = False,
-        conn=None) -> dict:
+        conn=None, perfil: str | None = None) -> dict:
     """Ejecuta el pipeline completo (F79). Devuelve el resumen de la ejecución."""
     from edualerta.services import alerts, audit, indicators, recommendations
 
@@ -193,7 +193,7 @@ def run(trigger: str = "manual", usuario: str = "sistema", force: bool = False,
     conn.commit()
     summary = {"id": run_id, "estado": estado, **tot, "pasos": pasos, "errores": errores}
     audit.log(usuario, "ejecutar_pipeline", "ejecuciones_etl", str(run_id),
-              {"disparador": trigger, "estado": estado, **tot})
+              {"disparador": trigger, "estado": estado, **tot}, perfil)
     if own_conn:
         conn.close()
     return summary

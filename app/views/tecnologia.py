@@ -9,19 +9,57 @@ from edualerta.services import tech
 u = common.guard("tecnologia")
 conn = common.conn()
 rules = sql.get_rules(conn)
-f = common.sidebar_filters(show_grade=False)
 
 common.header("Tecnología escolar",
               "Qué centros carecen de conectividad o dispositivos y cuáles conviene evaluar primero.")
+f = common.filters_bar(show_grade=False)
 if not f["periodo"]:
     st.stop()
+
+
+def inventory_form(default_period: str | None = None) -> None:
+    """F45-F46: registro/actualización del inventario de un centro y período."""
+    if not common.can("editar_recursos"):
+        common.empty("Solo el perfil Tecnología registra inventario.", "Usted puede consultar los datos.")
+        return
+    opts_all = dict(sql.query_df(conn, "SELECT codigo, codigo || ' ' || replace(nombre, 'Centro Educativo ', '') "
+                                       "AS n FROM centros ORDER BY codigo").values.tolist())
+    periods = sql.all_periods(conn)[::-1]
+    a, b = st.columns(2)
+    cen = a.selectbox("Centro", list(opts_all), format_func=opts_all.get)
+    per = b.selectbox("Período", periods,
+                      index=periods.index(default_period) if default_period in periods else 0)
+    cur = sql.query_df(conn, "SELECT * FROM recursos_tecnologicos WHERE centro_codigo=? AND periodo_codigo=?",
+                       (cen, per))
+    cur = cur.iloc[0] if not cur.empty else None
+    with st.form(f"rec_{cen}_{per}"):
+        a, b = st.columns(2)
+        net = a.toggle("Tiene internet", bool(cur["tiene_internet"]) if cur is not None else False)
+        vel = b.number_input("Velocidad (Mbps)", 0.0, 1000.0,
+                             float(cur["velocidad_mbps"]) if cur is not None else 0.0)
+        comp = a.number_input("Computadoras funcionales", 0, 5000,
+                              int(cur["computadoras_funcionales"]) if cur is not None else 0)
+        tab = b.number_input("Tabletas funcionales", 0, 5000,
+                             int(cur["tabletas_funcionales"]) if cur is not None else 0)
+        if st.form_submit_button("Guardar inventario", type="primary"):
+            try:
+                tech.save_resources(conn, cen, per, net, vel, comp, tab, u["usuario"], u["perfil"])
+                st.toast("Inventario guardado. Los indicadores ya lo reflejan.")
+                st.rerun()
+            except ValueError as exc:
+                st.error(str(exc))
+    common.note("Los valores precargados son los registrados para ese centro y período. Cada cambio queda en la "
+                "auditoría." if cur is not None else "No hay inventario registrado para ese centro y período.")
+
 
 df = tech.resources_frame(conn, f["periodo"], rules, f["regiones"] or None)
 if f["centros"] and not df.empty:
     df = df[df["centro_codigo"].isin(f["centros"])]
 if df.empty:
-    common.empty("No hay inventario tecnológico para este período.",
-                 "Regístrelo en la pestaña «Registrar inventario» o cárguelo como archivo en Datos y ETL.")
+    common.empty("No hay inventario tecnológico para este período y filtros.",
+                 "Regístrelo a continuación o cárguelo como archivo en Datos y ETL.")
+    st.markdown("#### Registrar inventario")
+    inventory_form(f["periodo"])
     st.stop()
 
 t = rules["tecnologia"]
@@ -108,32 +146,4 @@ with t3:
         st.markdown("#### Evolución de dispositivos por estudiante")
         common.chart(fig, 280)
 with t4:
-    if not common.can("editar_recursos"):
-        common.empty("Solo el perfil Tecnología registra inventario.", "Usted puede consultar los datos.")
-    else:
-        opts_all = dict(sql.query_df(conn, "SELECT codigo, codigo || ' ' || replace(nombre, 'Centro Educativo ', '') "
-                                           "AS n FROM centros ORDER BY codigo").values.tolist())
-        a, b = st.columns(2)
-        cen = a.selectbox("Centro", list(opts_all), format_func=opts_all.get)
-        per = b.selectbox("Período", sql.all_periods(conn)[::-1])
-        cur = sql.query_df(conn, "SELECT * FROM recursos_tecnologicos WHERE centro_codigo=? AND periodo_codigo=?",
-                           (cen, per))
-        cur = cur.iloc[0] if not cur.empty else None
-        with st.form(f"rec_{cen}_{per}"):
-            a, b = st.columns(2)
-            net = a.toggle("Tiene internet", bool(cur["tiene_internet"]) if cur is not None else False)
-            vel = b.number_input("Velocidad (Mbps)", 0.0, 1000.0,
-                                 float(cur["velocidad_mbps"]) if cur is not None else 0.0)
-            comp = a.number_input("Computadoras funcionales", 0, 5000,
-                                  int(cur["computadoras_funcionales"]) if cur is not None else 0)
-            tab = b.number_input("Tabletas funcionales", 0, 5000,
-                                 int(cur["tabletas_funcionales"]) if cur is not None else 0)
-            if st.form_submit_button("Guardar inventario", type="primary"):
-                try:
-                    tech.save_resources(conn, cen, per, net, vel, comp, tab, u["usuario"], u["perfil"])
-                    st.toast("Inventario guardado. Los indicadores ya lo reflejan.")
-                    st.rerun()
-                except ValueError as exc:
-                    st.error(str(exc))
-        common.note("Los valores precargados son los registrados para ese centro y período. Cada cambio queda en la "
-                    "auditoría." if cur is not None else "No hay inventario registrado para ese centro y período.")
+    inventory_form()

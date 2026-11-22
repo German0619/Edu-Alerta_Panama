@@ -49,8 +49,11 @@ def bootstrap() -> dict:
     return summary
 
 
-def reset() -> dict:
-    """F85: vacía SQL, MongoDB y cargas subidas; recarga la carga base 2025."""
+def reset(usuario: str = "sistema", perfil: str | None = None) -> dict:
+    """F85: vacía SQL, MongoDB y cargas subidas; recarga la carga base 2025.
+
+    `usuario`/`perfil` identifican en la auditoría a quien lo solicitó (un único evento).
+    """
     with sql.session() as conn:
         sql.init_schema(conn)
         sql.reset_data(conn)
@@ -67,8 +70,8 @@ def reset() -> dict:
     if geo.exists():
         geo.unlink()
     datagen.generate()
-    summary = pipeline.run(trigger="restablecer_demo", usuario="sistema")
-    audit.log("sistema", "restablecer_demo", "sistema", None, {"estado": summary["estado"]})
+    summary = pipeline.run(trigger="restablecer_demo", usuario=usuario, perfil=perfil)
+    audit.log(usuario, "restablecer_demo", "sistema", None, {"estado": summary["estado"]}, perfil)
     return summary
 
 

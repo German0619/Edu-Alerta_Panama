@@ -68,6 +68,11 @@ def add_intervention(db: Database, caso_id: str, tipo: str, fecha: date, descrip
         raise ValueError(f"Tipo debe ser uno de {TIPOS_INTERVENCION}")
     if not descripcion or len(descripcion.strip()) < 5:
         raise ValueError("Describa la intervención realizada.")
+    fecha_d = date.fromisoformat(_iso(fecha)[:10]) if fecha else date.today()
+    if fecha_d > date.today():
+        raise ValueError("La fecha de la intervención no puede ser futura: registre acciones ya realizadas.")
+    if proxima_revision and date.fromisoformat(_iso(proxima_revision)[:10]) < fecha_d:
+        raise ValueError("La próxima revisión no puede ser anterior a la fecha de la intervención.")
     caso = db.casos.find_one({"_id": caso_id})
     if not caso:
         raise ValueError("Caso inexistente")
@@ -79,7 +84,7 @@ def add_intervention(db: Database, caso_id: str, tipo: str, fecha: date, descrip
     now = _now()
     res = db.intervenciones.insert_one({
         "caso_id": caso_id, "estudiante_codigo": caso["estudiante_codigo"], "centro_codigo": caso["centro_codigo"],
-        "periodo_codigo": caso["periodo_codigo"], "tipo": tipo, "fecha": _iso(fecha),
+        "periodo_codigo": caso["periodo_codigo"], "tipo": tipo, "fecha": _iso(fecha_d),
         "descripcion": descripcion.strip(), "responsable": caso["responsable"],
         "rol_responsable": caso["rol_responsable"], "proxima_revision": _iso(proxima_revision),
         "estado_caso_resultante": estado, "registrado_por": usuario, "registrado_en": now,
@@ -87,8 +92,10 @@ def add_intervention(db: Database, caso_id: str, tipo: str, fecha: date, descrip
     if observacion and observacion.strip():
         add_observation(db, caso["estudiante_codigo"], observacion, "intervencion", usuario, caso_id=caso_id,
                         perfil=perfil, fecha=fecha)
+    # Las intervenciones pueden registrarse en otro orden (p. ej., retroactivas): la última es la de fecha mayor.
+    ultima = max(filter(None, [caso.get("ultima_intervencion"), _iso(fecha_d)]))
     db.casos.update_one({"_id": caso_id}, {
-        "$set": {"estado": estado, "proxima_revision": _iso(proxima_revision), "ultima_intervencion": _iso(fecha)},
+        "$set": {"estado": estado, "proxima_revision": _iso(proxima_revision), "ultima_intervencion": ultima},
         "$inc": {"n_intervenciones": 1},
         "$push": {"historial": {"fecha": now, "evento": "intervencion", "usuario": usuario,
                                 "detalle": f"{tipo}: {descripcion.strip()[:80]} · estado {estado}"}}})
@@ -136,22 +143,36 @@ def add_observation(db: Database, estudiante: str, texto: str, tipo: str, usuari
 def update_observation(db: Database, obs_id, texto: str, usuario: str, perfil: str | None = None) -> None:
     """F26 (actualizar)."""
     from bson import ObjectId
+    if not texto or not texto.strip():
+        raise ValueError("La observación está vacía.")
     key = ObjectId(obs_id) if ObjectId.is_valid(str(obs_id)) else obs_id
-    res = db.observaciones.update_one({"_id": key}, {"$set": {"texto": texto.strip(), "editado_por": usuario,
-                                                               "editado_en": _now()}})
-    if res.matched_count == 0:
+    actual = db.observaciones.find_one({"_id": key}, {"texto": 1})
+    if not actual:
         raise ValueError("Observación inexistente")
-    audit.log(usuario, "editar_observacion", "observaciones", str(obs_id), {}, perfil)
+    now = _now()
+    # Se conserva la versión anterior: una corrección no debe borrar la evidencia original (F75).
+    db.observaciones.update_one({"_id": key}, {
+        "$set": {"texto": texto.strip(), "editado_por": usuario, "editado_en": now},
+        "$push": {"versiones": {"texto": actual["texto"], "reemplazado_en": now, "reemplazado_por": usuario}}})
+    audit.log(usuario, "editar_observacion", "observaciones", str(obs_id),
+              {"antes": actual["texto"], "despues": texto.strip()}, perfil)
 
 
-def cases_frame(db: Database, estados=None, centros=None, periodo: str | None = None) -> pd.DataFrame:
+def cases_frame(db: Database, estados=None, centros=None, periodo: str | None = None, regiones=None,
+                grados=None) -> pd.DataFrame:
+    """Casos filtrados con el mismo alcance que los KPI (período, región, centro y grado de la alerta)."""
     q: dict = {}
     if estados:
         q["estado"] = {"$in": list(estados)}
     if centros:
         q["centro_codigo"] = {"$in": list(centros)}
+    if regiones:
+        q["region_codigo"] = {"$in": list(regiones)}
     if periodo:
         q["periodo_codigo"] = periodo
+    if grados:  # el grado está en la alerta que originó el caso
+        q["alerta_id"] = {"$in": [a["_id"] for a in db.alertas.find({"grado": {"$in": [int(g) for g in grados]}},
+                                                                    {"_id": 1})]}
     docs = list(db.casos.find(q, {"historial": 0}).sort("abierto_en", -1))
     cols = ["_id", "estudiante_codigo", "periodo_codigo", "centro_codigo", "nivel", "responsable", "rol_responsable",
             "estado", "n_intervenciones", "ultima_intervencion", "proxima_revision", "abierto_en"]
@@ -178,24 +199,33 @@ def student_profile(conn: sqlite3.Connection, db: Database, estudiante: str) -> 
     intervenciones = list(db.intervenciones.find({"estudiante_codigo": estudiante}).sort("fecha", 1))
     observaciones = list(db.observaciones.find({"estudiante_codigo": estudiante}).sort("fecha", 1))
 
+    def _ts(v) -> str:
+        return v.isoformat() if isinstance(v, (date, datetime)) else str(v or "")
+
+    # `fecha` es el día que se muestra; `orden` añade la hora de registro para que los eventos del mismo día
+    # queden en orden cronológico real (F43).
     timeline = []
     for o in observaciones:
-        timeline.append({"fecha": str(o["fecha"])[:10], "tipo": f"Observación · {o['tipo']}",
+        timeline.append({"fecha": str(o["fecha"])[:10], "orden": f"{str(o['fecha'])[:10]} {_ts(o.get('registrado_en'))}",
+                         "tipo": f"Observación · {o['tipo']}",
                          "detalle": o["texto"], "autor": o.get("autor") or o.get("autor_rol"),
                          "origen": o.get("origen", "")})
     for i in intervenciones:
-        timeline.append({"fecha": str(i["fecha"])[:10], "tipo": f"Intervención · {i['tipo']}",
+        timeline.append({"fecha": str(i["fecha"])[:10], "orden": f"{str(i['fecha'])[:10]} {_ts(i.get('registrado_en'))}",
+                         "tipo": f"Intervención · {i['tipo']}",
                          "detalle": i["descripcion"], "autor": i["registrado_por"], "origen": i["caso_id"]})
     for a in alertas:
         for h in a.get("historial", []):
-            timeline.append({"fecha": str(h["fecha"])[:10], "tipo": f"Alerta {a['periodo_codigo']} · {h['evento']}",
+            timeline.append({"fecha": str(h["fecha"])[:10], "orden": f"{str(h['fecha'])[:10]} {_ts(h['fecha'])}",
+                             "tipo": f"Alerta {a['periodo_codigo']} · {h['evento']}",
                              "detalle": h.get("detalle", ""), "autor": h.get("usuario"), "origen": a["_id"]})
     for c in casos:
         for h in c.get("historial", []):
             if h["evento"] != "intervencion":
-                timeline.append({"fecha": str(h["fecha"])[:10], "tipo": f"Caso · {h['evento']}",
+                timeline.append({"fecha": str(h["fecha"])[:10], "orden": f"{str(h['fecha'])[:10]} {_ts(h['fecha'])}",
+                                 "tipo": f"Caso · {h['evento']}",
                                  "detalle": h.get("detalle", ""), "autor": h.get("usuario"), "origen": c["_id"]})
-    timeline.sort(key=lambda t: t["fecha"])
+    timeline.sort(key=lambda t: t["orden"])
     return {"info": info, "indicadores": ind, "notas": notas, "alertas": alertas, "casos": casos,
             "intervenciones": intervenciones, "observaciones": observaciones,
             "linea_tiempo": pd.DataFrame(timeline)}

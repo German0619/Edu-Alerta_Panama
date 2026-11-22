@@ -43,7 +43,7 @@ sintéticos y ejecuta el pipeline una vez. Los arranques posteriores reutilizan 
 ### Comandos útiles
 
 ```bash
-docker compose --profile test run --rm tests test       # 42 pruebas (unitarias, flujo, integración, dashboard)
+docker compose --profile test run --rm tests test       # 49 pruebas (unitarias, flujo, integración, dashboard)
 docker compose exec app python -m edualerta.cli pipeline           # ejecutar ETL manualmente
 docker compose exec app python -m edualerta.cli pipeline --force   # reprocesar (prueba de idempotencia)
 docker compose exec app python -m edualerta.cli reset              # restablecer escenario de demostración
@@ -65,7 +65,7 @@ Copie `.env.example` a `.env` y defina `MONGO_URI=mongodb+srv://...`. El resto n
 2. Seleccionar la fila → **Confirmar** con justificación → **Abrir caso** asignando tutor.
 3. Pestaña *Casos e intervenciones* → registrar **tutoría** + observación (MongoDB).
    *Inicio* refleja el caso «en seguimiento» y el KPI de intervenciones.
-4. **Germán** › *Datos y ETL* › **Preparar paquete demo 2026-T1** → **Ejecutar pipeline**
+4. **Germán** › *Datos y ETL* › **Agregar paquete de demostración 2026-T1** → **Ejecutar pipeline**
    (rechaza a propósito una fecha inválida y una nota negativa; ver *Calidad y rechazos*).
 5. **Alison** › caso de E-0042 › *Evolución*: 2026-T1 sube a 88 % / 68 (Δ +16 / +10) → nivel preventivo.
 6. **Nathalia** › *Decisiones*: revisar recomendación y evidencias → **aprobar** con responsable,
@@ -149,7 +149,7 @@ Las ausencias justificadas se excluyen de los días programados y cortan las rac
 
 ### Diseño y funcionamiento sin internet
 
-La interfaz usa un sistema visual propio (barra lateral «pizarra», semáforo reservado a niveles de riesgo,
+La interfaz usa un sistema visual propio (barra de navegación superior «pizarra» con filtros en franja bajo el título, semáforo reservado a niveles de riesgo,
 tipografías Figtree y Bricolage Grotesque). Las fuentes están dentro del proyecto (`app/static/fonts`, licencia
 SIL OFL) y Streamlit las sirve desde el contenedor: la aplicación no necesita internet. La única excepción es el
 fondo cartográfico del mapa regional (teselas de CARTO/OpenStreetMap); sin conexión, las regiones se dibujan

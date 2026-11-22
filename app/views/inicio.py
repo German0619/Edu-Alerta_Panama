@@ -11,9 +11,9 @@ common.guard("inicio")
 conn, db = common.conn(), common.db()
 rules = sql.get_rules(conn)
 
-f = common.sidebar_filters()
 common.header("Resumen ejecutivo",
               "Qué estudiantes requieren atención, cómo responde la institución y en qué contexto escolar.")
+f = common.filters_bar()
 if not f["periodo"]:
     common.empty("Todavía no hay datos procesados.",
                  "Un perfil de Tecnología debe ejecutar el pipeline en <b>Datos y ETL</b>.")
@@ -53,8 +53,14 @@ def item(key, higher_is_better=True):
             good = (d > 0) == higher_is_better
     if v is None and it["denominador"] == 0:
         delta = "sin casos todavía"
+    if it["numerador"] is None:
+        calc = "sin dato (fuente no disponible)"
+    elif it["unidad"] in ("%", "disp./est."):  # razones: se muestra la división real
+        calc = f"{it['numerador']} / {it['denominador']}"
+    else:  # conteos: el total es contexto, no un divisor
+        calc = f"{it['numerador']} (de {it['denominador']} alertas vigentes)"
     return {"label": it["nombre"], "value": value, "unit": unit, "delta": delta, "good": good,
-            "help": f"{it['formula']} = {it['numerador']} / {it['denominador']}. Fuente: {it['fuente']}."}
+            "help": f"{it['formula']} = {calc}. Fuente: {it['fuente']}."}
 
 
 left, right = st.columns([3, 2], gap="large")
@@ -78,7 +84,7 @@ with left:
 with right:
     st.markdown('<div class="edu-group">Cómo leer estos indicadores</div>', unsafe_allow_html=True)
     common.note("Cada cifra se calcula desde la base de datos en cada ejecución del pipeline. Pase el cursor "
-                "sobre <b>?</b> para ver la fórmula y el cálculo exacto. La variación compara con el período "
+                "sobre <b>?</b> (o tóquelo) para ver la fórmula y el cálculo exacto. La variación compara con el período "
                 "anterior: verde mejora, rojo empeora.")
 
 # ----------------------------------------------------------------- alertas por centro + casos
@@ -102,7 +108,8 @@ with left:
 with right:
     st.markdown("### Casos de seguimiento")
     if db is not None:
-        cases = followup.cases_frame(db, centros=f["centros"] or None)
+        cases = followup.cases_frame(db, centros=f["centros"] or None, periodo=f["periodo"],
+                                     regiones=f["regiones"] or None, grados=f["grados"] or None)
         cnt = cases["estado"].value_counts() if not cases.empty else pd.Series(dtype=int)
         common.bars([(e, int(cnt.get(e, 0)), common.CASO_COLORS[e]) for e in followup.ESTADOS_CASO])
         if cases.empty:
@@ -133,7 +140,10 @@ if db is not None:
 
 # ----------------------------------------------------------------- exportación
 st.markdown("### Reporte ejecutivo")
-kpi_rows = pd.DataFrame([{"KPI": v["nombre"], "Valor": v["valor"], "Unidad": v["unidad"], "Fórmula": v["formula"],
+kpi_rows = pd.DataFrame([{"KPI": v["nombre"],
+                          # los conteos se exportan como enteros (no 6.0) aunque la columna mezcle tipos
+                          "Valor": int(v["valor"]) if v["valor"] is not None and v["unidad"] in ("estudiantes", "alertas")
+                          else v["valor"], "Unidad": v["unidad"], "Fórmula": v["formula"],
                           "Numerador": v["numerador"], "Denominador": v["denominador"], "Fuente": v["fuente"]}
                          for v in k.values()])
 tablas = {}
@@ -141,11 +151,25 @@ if not dist.empty:
     tablas["Alertas por centro (top 15)"] = (dist.pivot_table(index=["centro_codigo", "centro_nombre"],
                                                                columns="nivel_alerta", values="estudiantes",
                                                                aggfunc="sum", fill_value=0)
-                                             .reset_index().head(15))
+                                             .reset_index().head(15)
+                                             .rename(columns={"centro_codigo": "Código", "centro_nombre": "Centro",
+                                                              "prioritario": "Prioritario",
+                                                              "preventivo": "Preventivo"}))
 if db is not None:
     r = recommendations.decisions_frame(db, solo_vigentes=True)
+    if not r.empty and (f["regiones"] or f["centros"]):  # mismo alcance que los filtros del reporte
+        cen = sql.query_df(conn, "SELECT codigo, region_codigo FROM centros")
+        if f["regiones"]:
+            cen = cen[cen["region_codigo"].isin(f["regiones"])]
+        if f["centros"]:
+            cen = cen[cen["codigo"].isin(f["centros"])]
+        scope_c, scope_r = set(cen["codigo"]), set(cen["region_codigo"])
+        r = r[r["objetivo"].map(lambda o: o.get("tipo") == "global"
+                                or (o.get("tipo") == "region" and o.get("codigo") in scope_r)
+                                or (o.get("tipo") == "centro" and o.get("codigo") in scope_c))]
     if not r.empty:
-        tablas["Recomendaciones y decisiones"] = r[["puntaje", "titulo", "estado"]].head(15)
+        tablas["Recomendaciones y decisiones"] = r[["puntaje", "titulo", "estado"]].head(15).rename(
+            columns={"puntaje": "Prioridad", "titulo": "Recomendación", "estado": "Estado"})
 pdf = reports.executive_pdf(f"Resumen ejecutivo {f['periodo']}", common.filters_label(f), k, tablas)
 c1, c2, _ = st.columns([1, 1, 2.2])
 with c1:

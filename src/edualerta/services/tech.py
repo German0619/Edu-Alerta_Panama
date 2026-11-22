@@ -73,9 +73,10 @@ def save_resources(conn: sqlite3.Connection, centro: str, periodo: str, tiene_in
     """F45-F46: registro/actualización desde la interfaz."""
     if min(velocidad, computadoras, tabletas) < 0:
         raise ValueError("Los valores no pueden ser negativos.")
+    velocidad = float(velocidad if tiene_internet else 0)  # sin internet no hay velocidad que registrar
     sql.upsert(conn, "recursos_tecnologicos", [{
         "centro_codigo": centro, "periodo_codigo": periodo, "tiene_internet": int(bool(tiene_internet)),
-        "velocidad_mbps": float(velocidad if tiene_internet else 0), "computadoras_funcionales": int(computadoras),
+        "velocidad_mbps": velocidad, "computadoras_funcionales": int(computadoras),
         "tabletas_funcionales": int(tabletas), "actualizado_por": usuario, "actualizado_en": sql.now_iso()}],
         ["centro_codigo", "periodo_codigo"])
     conn.commit()

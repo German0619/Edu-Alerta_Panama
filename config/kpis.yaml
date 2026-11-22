@@ -4,7 +4,7 @@
 kpis:
   tasa_asistencia:
     nombre: Tasa de asistencia
-    descripcion: Proporción de días en que los estudiantes asistieron (presente, tardanza o ausencia justificada).
+    descripcion: Proporción de días programados en que los estudiantes asistieron (presente o tardanza). Las ausencias justificadas se excluyen del numerador y del denominador para no penalizar inasistencias documentadas.
     formula: "Días asistidos / días programados × 100"
     fuente: SQLite · asistencias
     periodicidad: Trimestral (recalculada en cada ejecución del pipeline)

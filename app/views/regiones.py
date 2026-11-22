@@ -11,10 +11,10 @@ from edualerta.services import regional
 u = common.guard("regiones")
 conn = common.conn()
 rules = sql.get_rules(conn)
-f = common.sidebar_filters(show_grade=False)
 
 common.header("Comparación regional",
               "Dónde se concentran las necesidades y qué regiones conviene estudiar o atender primero.")
+f = common.filters_bar(show_grade=False)
 if not f["periodo"]:
     st.stop()
 

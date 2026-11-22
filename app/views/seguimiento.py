@@ -12,12 +12,12 @@ from edualerta.services import alerts, followup
 
 u = common.guard("seguimiento")
 conn, db = common.conn(), common.require_db()
-f = common.sidebar_filters()
 can_review = common.can("revisar_alerta")
 can_case = common.can("gestionar_caso")
 
 common.header("Seguimiento académico",
               "Revise cada alerta, confirme los casos reales, asigne responsable y registre las intervenciones.")
+f = common.filters_bar()
 if not f["periodo"]:
     st.stop()
 
@@ -46,7 +46,8 @@ with t_al:
                       default=["prioritario", "preventivo"], key="al_niv")
     estados = b.pills("Estado de revisión", ["abierta", "confirmada", "descartada"], selection_mode="multi",
                       default=["abierta", "confirmada"], key="al_est")
-    buscar = c.text_input("Buscar estudiante", placeholder="Código, p. ej. E-0042", key="al_q").strip().upper()
+    buscar = c.text_input("Buscar estudiante", placeholder="Código, p. ej. E-0042", key="al_q")
+    buscar = common.student_code(buscar)
     df = alerts.alerts_frame(db, f["periodo"], niveles or None, estados or None, f["centros"] or None,
                              f["regiones"] or None)
     if f["grados"] and not df.empty:
@@ -99,8 +100,10 @@ with t_al:
                                       "txt": h.get("detalle"), "who": h.get("usuario"),
                                       "color": EVENT_COLORS.get(h["evento"], common.COBALT)}
                                      for h in reversed(al.get("historial", []))])
-                if st.button("Abrir perfil del estudiante", icon=":material/person_search:"):
-                    st.session_state["pe_code"] = al["estudiante_codigo"]
+                # El callback escribe el estado del campo del perfil antes de dibujarlo; asignarlo después
+                # no tendría efecto una vez que el usuario ya visitó esa pestaña.
+                if st.button("Abrir perfil del estudiante", icon=":material/person_search:",
+                             on_click=st.session_state.__setitem__, args=("pe_input", al["estudiante_codigo"])):
                     st.toast("Perfil listo en la pestaña «Perfil del estudiante».")
             with r:
                 reviewed = al["estado"] in ("confirmada", "descartada")
@@ -150,7 +153,8 @@ with t_al:
 with t_ca:
     est_f = st.pills("Estado del caso", followup.ESTADOS_CASO, selection_mode="multi",
                      default=["pendiente", "en seguimiento", "atendido"], key="ca_est")
-    cases = followup.cases_frame(db, est_f or None, f["centros"] or None)
+    cases = followup.cases_frame(db, est_f or None, f["centros"] or None, regiones=f["regiones"] or None,
+                                 grados=f["grados"] or None)
     if cases.empty:
         common.empty("No hay casos con estos filtros.",
                      "Los casos se abren en la pestaña «Alertas», después de confirmar una alerta.")
@@ -231,7 +235,7 @@ with t_ca:
                     with st.form(f"int_{caso['_id']}", clear_on_submit=True):
                         a2, b2 = st.columns(2)
                         tipo = a2.selectbox("Tipo", followup.TIPOS_INTERVENCION)
-                        fecha = b2.date_input("Fecha", date.today(), format="DD/MM/YYYY")
+                        fecha = b2.date_input("Fecha", date.today(), max_value=date.today(), format="DD/MM/YYYY")
                         desc = st.text_area("Acción realizada", placeholder="Ej.: Tutoría de matemáticas, "
                                                                             "2 sesiones por semana.")
                         obs = st.text_area("Observación cualitativa", height=80,
@@ -266,8 +270,9 @@ with t_ca:
 # =================================================================== PERFIL (F26, F28, F35, F40)
 with t_pe:
     a, _ = st.columns([1, 2.5])
-    code = a.text_input("Código del estudiante", value=st.session_state.get("pe_code", "E-0042"),
-                        key="pe_input").strip().upper()
+    st.session_state.setdefault("pe_input", "E-0042")
+    code = a.text_input("Código del estudiante", key="pe_input")
+    code = common.student_code(code)
     exists = conn.execute("SELECT 1 FROM estudiantes WHERE codigo=?", (code,)).fetchone()
     if not exists:
         common.empty("No existe un estudiante con ese código.", "Use el formato E-NNNN, por ejemplo E-0042.")
@@ -313,7 +318,7 @@ with t_pe:
             common.note("Sin registros de seguimiento.")
         else:
             rows = []
-            for t in tl.sort_values("fecha", ascending=False).head(14).to_dict("records"):
+            for t in tl.sort_values("orden", ascending=False).head(14).to_dict("records"):
                 color = (common.COBALT if t["tipo"].startswith("Intervención") else
                          common.SLATE if t["tipo"].startswith("Caso") else
                          common.AMBER if t["tipo"].startswith("Alerta") else "#3E8E7E")
@@ -341,6 +346,9 @@ with t_pe:
                 cur = next(o for o in own if str(o["_id"]) == oid)
                 new = st.text_area("Texto corregido", cur["texto"], key=f"ed_{oid}")
                 if st.button("Guardar corrección"):
-                    followup.update_observation(db, oid, new, u["usuario"], u["perfil"])
-                    st.toast("Observación corregida.")
-                    st.rerun()
+                    try:
+                        followup.update_observation(db, oid, new, u["usuario"], u["perfil"])
+                        st.toast("Observación corregida. La versión anterior queda en el historial.")
+                        st.rerun()
+                    except ValueError as exc:
+                        st.error(str(exc))

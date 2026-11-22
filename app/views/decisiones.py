@@ -8,7 +8,7 @@ import common
 from common import esc
 from edualerta import config
 from edualerta.db import sql
-from edualerta.services import recommendations as recs
+from edualerta.services import audit, recommendations as recs
 
 u = common.guard("decisiones")
 conn, db = common.conn(), common.require_db()
@@ -42,9 +42,12 @@ with t1:
     tipos = a.pills("Tipo de recomendación", list(REGLAS), format_func=REGLAS.get, selection_mode="multi",
                     key="rec_tipos")
     with b:
-        if st.button("Recalcular", icon=":material/refresh:", use_container_width=True,
+        # Regenerar recomendaciones modifica MongoDB: solo Dirección (decide) y Tecnología (gestiona reglas) (F73).
+        can_recalc = can_decide or common.can("editar_reglas")
+        if st.button("Recalcular", icon=":material/refresh:", use_container_width=True, disabled=not can_recalc,
                      help="Vuelve a aplicar las reglas con los datos y umbrales actuales."):
             out = recs.generate(conn, db, sql.get_rules(conn))
+            audit.log(u["usuario"], "recalcular_recomendaciones", "decisiones", None, out, u["perfil"])
             st.toast(f"{out['recomendaciones']} recomendaciones vigentes.")
             st.rerun()
     pend = pend_all[pend_all["regla"].isin(tipos)] if tipos and not pend_all.empty else pend_all
@@ -95,6 +98,7 @@ with t1:
                 acc = a.selectbox("Decisión", list(recs.ACCIONES), format_func=lambda x: x.replace("_", " "),
                                   key=f"acc_{sel}")
                 fr = b.date_input("Fecha de revisión", date.today() + timedelta(days=30), key=f"fr_{sel}",
+                                  min_value=date.today(),
                                   format="DD/MM/YYYY")
                 resp = st.text_input("Responsable de ejecución", key=f"resp_{sel}",
                                      placeholder="Persona o unidad que ejecutará la acción")
@@ -124,7 +128,12 @@ with t1:
                                     f"<span class='edu-note'>{p} × {im} = {p * im}</span>", unsafe_allow_html=True)
                         risks.append({"descripcion": desc, "probabilidad": p, "impacto": im, "control": ctl,
                                       "riesgo_matriz": ref["id"] if ref else None})
+                if acc != "aprobar":
+                    common.note("Para posponer, rechazar o solicitar revisión los riesgos son opcionales: deje en "
+                                "blanco los que no aplique.")
                 if st.button("Registrar decisión", type="primary", use_container_width=True):
+                    # un riesgo «Otro» sin descripción ni control es un bloque sin usar, no un riesgo incompleto
+                    risks = [x for x in risks if x["descripcion"].strip() or x["control"].strip()]
                     try:
                         estado = recs.register_decision(db, doc["_id"], acc, resp, just, fr, risks, u["usuario"],
                                                         u["perfil"])

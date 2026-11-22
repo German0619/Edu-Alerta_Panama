@@ -90,6 +90,19 @@ GROUPS = [
     ("Automatización", "", [("pipeline.intervalo_minutos", "Frecuencia del pipeline (minutos)")]),
 ]
 
+# Rango válido de cada regla: evita, por ejemplo, una asistencia mínima negativa que apagaría las alertas.
+LIMITES = {
+    "alertas.prioritario.asistencia_min": (0, 100), "alertas.preventivo.asistencia_min": (0, 100),
+    "alertas.prioritario.promedio_min": (0, 100), "alertas.preventivo.promedio_min": (0, 100),
+    "alertas.prioritario.ausencias_consecutivas": (1, 60), "alertas.preventivo.ausencias_consecutivas": (1, 60),
+    "alertas.nota_aprobacion": (1, 100),
+    "tecnologia.dispositivos_por_estudiante_critico": (0, 5), "tecnologia.dispositivos_por_estudiante_minimo": (0, 5),
+    "tecnologia.velocidad_minima_mbps": (0, 1000),
+    "recomendaciones.pct_prioritarios_centro": (1, 100), "recomendaciones.alertas_sin_seguimiento_max": (1, 10000),
+    "recomendaciones.brecha_asistencia_region": (0, 100), "recomendaciones.caida_asistencia_centro": (0, 100),
+    "pipeline.intervalo_minutos": (1, 1440),
+}
+
 # ------------------------------------------------------------------ reglas
 with t_reg:
     editable = common.can("editar_reglas")
@@ -109,13 +122,19 @@ with t_reg:
             for i, (k, label) in enumerate(fields):
                 v = flat[k]
                 step = 0.01 if isinstance(v, float) and v < 1 else 1.0 if isinstance(v, float) else 1
-                new[k] = cols[i].number_input(label, value=v, step=step, key=f"rule_{k}", disabled=not editable)
+                lo, hi = LIMITES.get(k, (None, None))
+                cast = float if isinstance(v, float) else int
+                new[k] = cols[i].number_input(label, value=v, step=step, key=f"rule_{k}", disabled=not editable,
+                                              min_value=None if lo is None else cast(lo),
+                                              max_value=None if hi is None else cast(hi))
         st.write("")
         if st.form_submit_button("Guardar y recalcular", type="primary", disabled=not editable):
             p, v = "alertas.prioritario", "alertas.preventivo"
             if new[f"{p}.asistencia_min"] > new[f"{v}.asistencia_min"] or new[f"{p}.promedio_min"] > new[
                     f"{v}.promedio_min"] or new[f"{p}.ausencias_consecutivas"] < new[f"{v}.ausencias_consecutivas"]:
                 st.error("Los umbrales prioritarios deben ser más estrictos que los preventivos.")
+            elif new["tecnologia.dispositivos_por_estudiante_critico"] > new["tecnologia.dispositivos_por_estudiante_minimo"]:
+                st.error("El umbral crítico de dispositivos por estudiante no puede superar al mínimo.")
             else:
                 changed = {k: (flat[k], val) for k, val in new.items() if val != flat[k]}
                 for k, (_, val) in changed.items():
@@ -131,6 +150,9 @@ with t_reg:
                         alerts.sync_alerts(conn, d, r2)
                         recommendations.generate(conn, d, r2)
                     st.toast(f"{len(changed)} regla(s) actualizada(s) y resultados recalculados.")
+                    # El formulario debe volver a dibujarse con los valores guardados: si no, en el siguiente envío
+                    # Streamlit no reconoce los campos cuyo valor inicial cambió y descarta lo escrito.
+                    st.rerun()
                 else:
                     st.toast("No hubo cambios.")
     hist = sql.query_df(conn, "SELECT clave, valor, actualizado_en, actualizado_por FROM configuracion "
@@ -239,8 +261,9 @@ with t_auto:
         st.markdown("#### Simular ejecución programada")
         common.note("Ejecuta el pipeline como lo haría el scheduler. Los archivos ya procesados se omiten.")
         if st.button("Simular ahora", icon=":material/schedule:", disabled=not can_admin):
-            out = pipeline.run(trigger="programado_simulado", usuario=u["usuario"])
+            out = pipeline.run(trigger="programado_simulado", usuario=u["usuario"], perfil=u["perfil"])
             st.toast(f"Ejecución n.º {out.get('id')}: {out['estado']}, {out['omitidos']} archivos omitidos.")
+            st.rerun()  # actualiza el encabezado («Datos al…») y los indicadores de esta pestaña
     with b:
         st.markdown("#### Restablecer la demostración")
         common.note("Borra SQL, MongoDB y archivos subidos, y recarga la carga base 2025.")
@@ -249,10 +272,10 @@ with t_auto:
             if st.button("Sí, restablecer", type="primary"):
                 from edualerta import cli
                 with st.spinner("Restableciendo…"):
-                    out = cli.reset()
-                audit.log(u["usuario"], "restablecer_demo", "sistema", None, {"estado": out["estado"]}, u["perfil"])
+                    cli.reset(usuario=u["usuario"], perfil=u["perfil"])
                 st.session_state.pop("last_run", None)
                 st.toast("Escenario inicial restablecido.")
+                st.rerun()
     st.markdown("#### Pruebas automáticas")
     common.note("Ejecuta Pytest dentro del contenedor contra bases de prueba aisladas; no toca los datos de la demo.")
     if st.button("Ejecutar pruebas", icon=":material/science:", disabled=not can_admin):
