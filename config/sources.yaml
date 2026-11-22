@@ -1,0 +1,136 @@
+# Fuentes configuradas del pipeline ETL (F13, F14, F76).
+# El orden define el orden de carga (respeta claves foráneas).
+# `alias` normaliza encabezados heterogéneos (F16). `requeridas` se verifican antes de procesar (F12).
+
+fuentes:
+  - nombre: regiones
+    entidad: regiones
+    formato: geojson
+    patron: "regiones*.geojson"
+    origen: Geometría simplificada generada para el prototipo (no son límites oficiales)
+    naturaleza: sintetica
+    responsable: Nathalia Rivera
+    descripcion: Regiones educativas de Panamá con geometría aproximada para el mapa.
+    requeridas: [codigo, nombre]
+
+  - nombre: centros
+    entidad: centros
+    formato: csv
+    patron: "centros*.csv"
+    origen: Generador de datos sintéticos EDU-ALERTA
+    naturaleza: sintetica
+    responsable: Germán Carreño
+    descripcion: Centros educativos ficticios con región, zona y dependencia.
+    requeridas: [codigo, nombre, region_codigo, zona, dependencia]
+    alias:
+      codigo_centro: codigo
+      centro: codigo
+      nombre_centro: nombre
+      region: region_codigo
+      cod_region: region_codigo
+      area: zona
+
+  - nombre: periodos
+    entidad: periodos
+    formato: csv
+    patron: "periodos*.csv"
+    origen: Calendario escolar demostrativo
+    naturaleza: sintetica
+    responsable: Germán Carreño
+    descripcion: Períodos académicos (trimestres) con fechas de inicio y fin.
+    requeridas: [codigo, anio, trimestre, fecha_inicio, fecha_fin]
+    alias:
+      periodo: codigo
+      ano: anio
+      year: anio
+
+  - nombre: estudiantes
+    entidad: estudiantes
+    formato: csv
+    patron: "estudiantes*.csv"
+    origen: Generador de datos sintéticos EDU-ALERTA
+    naturaleza: sintetica
+    responsable: Alison Vargas
+    descripcion: Estudiantes ficticios con identificador anónimo (sin nombres ni cédulas).
+    requeridas: [codigo, genero, anio_nacimiento]
+    alias:
+      codigo_estudiante: codigo
+      estudiante: codigo
+      id_estudiante: codigo
+      sexo: genero
+      ano_nacimiento: anio_nacimiento
+
+  - nombre: matriculas
+    entidad: matriculas
+    formato: csv
+    patron: "matriculas*.csv"
+    origen: Generador de datos sintéticos EDU-ALERTA
+    naturaleza: sintetica
+    responsable: Alison Vargas
+    descripcion: Matrícula de cada estudiante por centro, grado y período.
+    requeridas: [estudiante_codigo, centro_codigo, periodo_codigo, grado]
+    alias:
+      estudiante: estudiante_codigo
+      codigo_estudiante: estudiante_codigo
+      centro: centro_codigo
+      codigo_centro: centro_codigo
+      periodo: periodo_codigo
+
+  - nombre: recursos_tecnologicos
+    entidad: recursos_tecnologicos
+    formato: csv
+    patron: "inventario_tecnologico*.csv"
+    origen: Inventario tecnológico demostrativo por centro
+    naturaleza: sintetica
+    responsable: Germán Carreño
+    descripcion: Conectividad y dispositivos funcionales por centro y período.
+    requeridas: [centro_codigo, periodo_codigo, tiene_internet, computadoras_funcionales, tabletas_funcionales]
+    alias:
+      centro: centro_codigo
+      codigo_centro: centro_codigo
+      periodo: periodo_codigo
+      internet: tiene_internet
+      computadoras: computadoras_funcionales
+      tabletas: tabletas_funcionales
+      velocidad: velocidad_mbps
+
+  - nombre: asistencias
+    entidad: asistencias
+    formato: csv
+    patron: "asistencias*.csv"
+    origen: Registro diario de asistencia (sintético)
+    naturaleza: sintetica
+    responsable: Alison Vargas
+    descripcion: Asistencia diaria por estudiante (presente, ausente, justificada, tardanza).
+    requeridas: [estudiante_codigo, fecha, estado]
+    alias:
+      estudiante: estudiante_codigo
+      codigo_estudiante: estudiante_codigo
+      dia: fecha
+      asistencia: estado
+
+  - nombre: calificaciones
+    entidad: calificaciones
+    formato: csv
+    patron: "calificaciones*.csv"
+    origen: Registro de calificaciones trimestrales (sintético)
+    naturaleza: sintetica
+    responsable: Alison Vargas
+    descripcion: Nota final por estudiante, asignatura y período (escala 0-100).
+    requeridas: [estudiante_codigo, periodo_codigo, asignatura, nota]
+    alias:
+      estudiante: estudiante_codigo
+      codigo_estudiante: estudiante_codigo
+      periodo: periodo_codigo
+      materia: asignatura
+      calificacion: nota
+
+  - nombre: seguimiento_historico
+    entidad: observaciones
+    formato: json
+    patron: "seguimiento*.json"
+    origen: Expedientes de seguimiento demostrativos
+    naturaleza: sintetica
+    responsable: Alison Vargas
+    descripcion: Observaciones, diagnósticos e intervenciones históricas (documentos).
+    requeridas: [id, estudiante_codigo, fecha, tipo, texto]

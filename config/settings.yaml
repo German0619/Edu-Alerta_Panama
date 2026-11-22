@@ -1,0 +1,57 @@
+# EDU-ALERTA Panamá - parámetros por defecto del prototipo.
+# Los umbrales se copian a la tabla SQL `configuracion` en el primer arranque
+# y luego se editan desde Administración > Reglas (quedan auditados).
+# Son ilustrativos: NO representan política oficial de MEDUCA ni un modelo predictivo validado.
+
+alertas:
+  prioritario:
+    asistencia_min: 75        # asistencia < 75 %  -> criterio crítico
+    promedio_min: 60          # promedio < 60/100  -> criterio crítico
+    ausencias_consecutivas: 3 # >= 3 ausencias consecutivas injustificadas
+  preventivo:
+    asistencia_min: 90
+    promedio_min: 70
+    ausencias_consecutivas: 2
+  nota_aprobacion: 61         # nota mínima aprobatoria por asignatura (escala 0-100)
+
+tecnologia:
+  dispositivos_por_estudiante_critico: 0.10  # < 0.10 dispositivos/estudiante -> necesidad alta
+  dispositivos_por_estudiante_minimo: 0.25   # < 0.25 -> necesidad media
+  velocidad_minima_mbps: 10                  # internet por debajo de esto cuenta como deficiente
+
+recomendaciones:
+  pct_prioritarios_centro: 15     # % de estudiantes prioritarios en un centro que activa recomendación
+  alertas_sin_seguimiento_max: 5  # alertas confirmadas sin caso abierto
+  brecha_asistencia_region: 3     # puntos por debajo del promedio nacional
+  caida_asistencia_centro: 3      # puntos de caída entre períodos consecutivos
+
+pipeline:
+  intervalo_minutos: 60
+
+perfiles:
+  direccion:
+    nombre: Dirección / Planificación
+    paginas: [inicio, datos, seguimiento, tecnologia, regiones, analisis, decisiones, administracion]
+    acciones: [registrar_decision, exportar]
+  seguimiento:
+    nombre: Seguimiento académico
+    paginas: [inicio, datos, seguimiento, tecnologia, regiones, analisis, decisiones]
+    acciones: [revisar_alerta, gestionar_caso, registrar_observacion, exportar]
+  tecnologia:
+    nombre: Tecnología (CIO)
+    paginas: [inicio, datos, tecnologia, regiones, analisis, decisiones, administracion]
+    acciones: [ejecutar_etl, cargar_archivos, editar_recursos, editar_reglas, restablecer_demo, gestionar_maestros, exportar]
+
+usuarios:
+  - usuario: german
+    nombre: Germán Carreño
+    perfil: tecnologia
+    cargo: Director de Tecnología (CIO)
+  - usuario: nathalia
+    nombre: Nathalia Rivera
+    perfil: direccion
+    cargo: Directora de Planificación Educativa
+  - usuario: alison
+    nombre: Alison Vargas
+    perfil: seguimiento
+    cargo: Coordinadora de Seguimiento Académico

@@ -1,0 +1,9 @@
+Fuentes incluidas para funcionar sin conexión a internet:
+
+- Figtree (c) The Figtree Project Authors — SIL Open Font License 1.1
+  https://github.com/erikdkennedy/figtree
+- Bricolage Grotesque (c) The Bricolage Grotesque Project Authors — SIL Open Font License 1.1
+  https://github.com/ateliertriay/bricolage
+
+Texto de la licencia: https://openfontlicense.org/open-font-license-official-text/
+Subconjuntos latin y latin-ext (cubren español), obtenidos de Google Fonts.

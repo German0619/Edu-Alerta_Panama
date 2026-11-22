@@ -1,0 +1,57 @@
+# Matriz de riesgos del SIG (F78). Probabilidad e impacto en escala 1-5.
+
+riesgos:
+  - id: R1
+    categoria: Calidad
+    riesgo: Datos académicos incompletos
+    consecuencia: Alertas incorrectas
+    probabilidad: 4
+    impacto: 4
+    responsable: Germán Carreño
+    preventivo: Validaciones del ETL, reglas de negocio y reporte de rechazos
+    respuesta: Marcar el período como no apto para decidir hasta corregir la fuente
+  - id: R2
+    categoria: Interpretación
+    riesgo: Clasificación errónea de un estudiante
+    consecuencia: Estigmatización o atención innecesaria
+    probabilidad: 3
+    impacto: 5
+    responsable: Alison Vargas
+    preventivo: Revisión humana obligatoria, motivos explicables y umbrales configurables
+    respuesta: Descartar la alerta documentando el motivo y ajustar umbrales
+  - id: R3
+    categoria: Interpretación
+    riesgo: Diferencias en registros regionales
+    consecuencia: Comparaciones engañosas
+    probabilidad: 3
+    impacto: 3
+    responsable: Nathalia Rivera
+    preventivo: Indicadores normalizados y visualización del tamaño de muestra
+    respuesta: Excluir regiones con cobertura insuficiente de la comparación
+  - id: R4
+    categoria: Privacidad
+    riesgo: Exposición de información estudiantil
+    consecuencia: Vulneración de privacidad
+    probabilidad: 2
+    impacto: 5
+    responsable: Germán Carreño
+    preventivo: Datos sintéticos, códigos anónimos y control de acceso por perfil
+    respuesta: Revocar accesos, revisar auditoría y notificar a la dirección
+  - id: R5
+    categoria: Continuidad operativa
+    riesgo: Fallas del pipeline
+    consecuencia: Indicadores desactualizados
+    probabilidad: 3
+    impacto: 4
+    responsable: Germán Carreño
+    preventivo: Bitácora de ejecución, pruebas automáticas y manejo de errores por fuente
+    respuesta: Reejecutar el pipeline; el dashboard muestra la fecha de la última ejecución exitosa
+  - id: R6
+    categoria: Continuidad operativa
+    riesgo: Limitaciones de conectividad
+    consecuencia: Dificultad para operar el sistema
+    probabilidad: 3
+    impacto: 3
+    responsable: Nathalia Rivera
+    preventivo: Exportación de reportes CSV/PDF y carga diferida de archivos
+    respuesta: Operar con reportes exportados y sincronizar al recuperar conexión

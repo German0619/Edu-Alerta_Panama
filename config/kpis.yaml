@@ -1,0 +1,67 @@
+# Ficha técnica de cada KPI (F63). Ningún valor se escribe manualmente: todos se calculan
+# desde SQLite / MongoDB en src/edualerta/services/kpi.py.
+
+kpis:
+  tasa_asistencia:
+    nombre: Tasa de asistencia
+    descripcion: Proporción de días en que los estudiantes asistieron (presente, tardanza o ausencia justificada).
+    formula: "Días asistidos / días programados × 100"
+    fuente: SQLite · asistencias
+    periodicidad: Trimestral (recalculada en cada ejecución del pipeline)
+    filtros: [periodo, region, centro, grado]
+    responsable: Alison Vargas (Seguimiento Académico)
+    unidad: "%"
+  tasa_aprobacion:
+    nombre: Tasa de aprobación
+    descripcion: Estudiantes cuyo promedio del período alcanza la nota aprobatoria configurada.
+    formula: "Estudiantes aprobados / estudiantes evaluados × 100"
+    fuente: SQLite · calificaciones → indicadores
+    periodicidad: Trimestral
+    filtros: [periodo, region, centro, grado]
+    responsable: Alison Vargas (Seguimiento Académico)
+    unidad: "%"
+  alertas_prioritarias:
+    nombre: Alertas prioritarias
+    descripcion: Número de estudiantes clasificados para revisión prioritaria y no descartados.
+    formula: "Conteo de alertas vigentes con nivel = prioritario"
+    fuente: MongoDB · alertas
+    periodicidad: En cada ejecución del pipeline
+    filtros: [periodo, region, centro, grado]
+    responsable: Alison Vargas (Seguimiento Académico)
+    unidad: estudiantes
+  conectividad_escolar:
+    nombre: Conectividad escolar
+    descripcion: Centros que reportan acceso a internet funcional.
+    formula: "Centros con internet / centros evaluados × 100"
+    fuente: SQLite · recursos_tecnologicos
+    periodicidad: Trimestral
+    filtros: [periodo, region]
+    responsable: Germán Carreño (Tecnología)
+    unidad: "%"
+  disponibilidad_dispositivos:
+    nombre: Disponibilidad de dispositivos
+    descripcion: Dispositivos funcionales (computadoras + tabletas) por estudiante matriculado.
+    formula: "Dispositivos funcionales / estudiantes matriculados"
+    fuente: SQLite · recursos_tecnologicos + matriculas
+    periodicidad: Trimestral
+    filtros: [periodo, region, centro]
+    responsable: Germán Carreño (Tecnología)
+    unidad: disp./est.
+  intervenciones_realizadas:
+    nombre: Intervenciones realizadas
+    descripcion: Casos de seguimiento que ya tienen al menos una intervención registrada.
+    formula: "Casos con acción registrada / casos asignados × 100"
+    fuente: MongoDB · casos + intervenciones
+    periodicidad: Continua
+    filtros: [periodo, centro]
+    responsable: Alison Vargas (Seguimiento Académico)
+    unidad: "%"
+  alertas_sin_seguimiento:
+    nombre: Alertas sin seguimiento
+    descripcion: Alertas vigentes (abiertas o confirmadas) que no tienen ninguna intervención registrada.
+    formula: "Alertas abiertas sin intervención registrada"
+    fuente: MongoDB · alertas + casos + intervenciones
+    periodicidad: Continua
+    filtros: [periodo, region, centro]
+    responsable: Nathalia Rivera (Planificación)
+    unidad: alertas

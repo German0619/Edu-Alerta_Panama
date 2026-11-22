@@ -1,0 +1,86 @@
+name: edu-alerta
+
+x-app-common: &app-common
+  build: .
+  image: edu-alerta:latest
+  env_file:
+    - path: .env
+      required: false
+  environment:
+    MONGO_URI: ${MONGO_URI:-mongodb://mongo:27017}
+    MONGO_DB: ${MONGO_DB:-edualerta}
+    SQLITE_PATH: /app/data/db/edualerta.db
+    DEMO_PASSWORD: ${DEMO_PASSWORD:-edualerta}
+    ETL_INTERVAL_MINUTES: ${ETL_INTERVAL_MINUTES:-60}
+  volumes:
+    - sqlite_data:/app/data/db
+    - incoming_data:/app/data/incoming
+  depends_on:
+    mongo:
+      condition: service_healthy
+
+services:
+  mongo:
+    image: mongo:7.0
+    restart: unless-stopped
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  # Interfaz web Streamlit (inicializa la base y ejecuta el pipeline la primera vez)
+  app:
+    <<: *app-common
+    command: ["app"]
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-8501}:8501"
+
+  # Orquestador programado del pipeline ETL (F22, F80)
+  scheduler:
+    <<: *app-common
+    command: ["scheduler"]
+    restart: unless-stopped
+    healthcheck:
+      disable: true
+    depends_on:
+      mongo:
+        condition: service_healthy
+      app:
+        condition: service_healthy
+
+  # Pruebas unitarias + integración contra MongoDB real (F83, F84)
+  #   docker compose --profile test run --rm tests
+  tests:
+    <<: *app-common
+    command: ["test"]
+    profiles: ["test"]
+    healthcheck:
+      disable: true
+    volumes: []
+    environment:
+      MONGO_URI: mongodb://mongo:27017
+      MONGO_DB: edualerta_test
+      SQLITE_PATH: /tmp/edualerta_test.db
+
+  # Visor web de MongoDB opcional:  docker compose --profile tools up -d mongo-express
+  mongo-express:
+    image: mongo-express:1.0.2
+    profiles: ["tools"]
+    ports:
+      - "8081:8081"
+    environment:
+      ME_CONFIG_MONGODB_URL: mongodb://mongo:27017
+      ME_CONFIG_BASICAUTH: "false"
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+volumes:
+  mongo_data:
+  sqlite_data:
+  incoming_data:
