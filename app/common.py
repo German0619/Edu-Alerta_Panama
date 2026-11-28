@@ -391,6 +391,11 @@ def header(title: str, lead: str | None = None, fresh: bool = True):
     lead_html = f'<p class="lead">{lead}</p>' if lead else ""
     st.markdown(f'<div class="edu-head"><div><h1>{esc(title)}</h1>{lead_html}</div>{pill}</div>',
                 unsafe_allow_html=True)
+    st.caption(
+        "Datos sintéticos de demostración: estudiantes, centros, regiones e indicadores del escenario no describen "
+        "la realidad de Panamá. Las estadísticas de MEDUCA se usan solo como referencia en el documento y no "
+        "se procesan en este sistema."
+    )
 
 
 def kpi_band(items: list[dict], group: str | None = None):
