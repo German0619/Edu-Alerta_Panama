@@ -9,3 +9,11 @@ data/db/*
 data/incoming/*
 !data/incoming/.gitkeep
 .playwright-mcp/
+
+# Copias locales de la base SQLite (p. ej., para la captura de DB Browser): no se versionan
+snapshot.db
+snapshot.db-shm
+snapshot.db-wal
+*.db
+*.db-shm
+*.db-wal
