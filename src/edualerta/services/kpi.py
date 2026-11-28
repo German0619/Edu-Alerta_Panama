@@ -24,6 +24,8 @@ def compute(conn: sqlite3.Connection, db: Database | None, periodo: str, rules: 
     res = tech.resources_frame(conn, periodo, rules, regiones=regiones)
     if centros and not res.empty:
         res = res[res["centro_codigo"].isin(centros)]
+    if grados and not res.empty:  # cada centro es de un solo nivel: el filtro de grado acota también los recursos
+        res = res[res["centro_codigo"].isin(scope_centros)]
 
     values: dict[str, dict] = {}
     values["tasa_asistencia"] = {"valor": _pct(ind["dias_asistidos"].sum(), ind["dias_programados"].sum()),
@@ -81,8 +83,9 @@ def trend(conn: sqlite3.Connection, rules: dict, regiones=None, centros=None, gr
         "preventivos": g["nivel_alerta"].apply(lambda s: (s == "preventivo").sum()),
         "estudiantes": g["estudiante_codigo"].nunique(),
     }).round(1).reset_index().sort_values(["anio", "trimestre"])
-    res = sql.query_df(conn, "SELECT periodo_codigo, AVG(tiene_internet)*100 AS conectividad_pct "
-                             "FROM recursos_tecnologicos GROUP BY periodo_codigo")
+    rec = sql.query_df(conn, "SELECT periodo_codigo, centro_codigo, tiene_internet FROM recursos_tecnologicos")
+    rec = rec[rec["centro_codigo"].isin(ind["centro_codigo"].unique())]  # mismos filtros que los indicadores
+    res = (rec.groupby("periodo_codigo")["tiene_internet"].mean() * 100).rename("conectividad_pct").reset_index()
     return out.merge(res.round(1), on="periodo_codigo", how="left")
 
 

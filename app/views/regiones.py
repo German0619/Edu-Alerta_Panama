@@ -27,7 +27,7 @@ HIGHER_BETTER = {"prioritarios_pct": False, "n_criterios_desfavorables": False}
 
 a, b, c = st.columns([1, 1, 2.2], gap="medium")
 zonas = a.multiselect("Zona", ["urbana", "rural"], key="rg_zona", placeholder="Todas")
-niveles = b.multiselect("Nivel educativo", ["premedia", "media", "primaria"], key="rg_niv", placeholder="Todos")
+niveles = b.multiselect("Nivel educativo", ["premedia", "media"], key="rg_niv", placeholder="Todos")
 with c:
     metric = st.selectbox("Indicador que colorea el mapa", list(METRICAS), format_func=METRICAS.get,
                           key="rg_metric")

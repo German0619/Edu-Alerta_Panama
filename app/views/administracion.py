@@ -219,6 +219,8 @@ with t_gob:
     st.markdown("#### Matriz de riesgos y controles")
     rm = pd.DataFrame(config.risk_matrix())
     rm["nivel"] = [risk_level(p, i) for p, i in zip(rm["probabilidad"], rm["impacto"])]
+    rm["pxi"] = rm["probabilidad"] * rm["impacto"]  # criterio de priorización (P × I)
+    rm = rm.sort_values(["pxi", "id"], ascending=[False, True]).reset_index(drop=True)
     d = common.db()
     linked = {}
     if d is not None:
@@ -226,9 +228,10 @@ with t_gob:
             [{"$unwind": "$riesgos"}, {"$match": {"riesgos.riesgo_matriz": {"$ne": None}}},
              {"$group": {"_id": "$riesgos.riesgo_matriz", "n": {"$sum": 1}}}])}
     rm["decisiones"] = rm["id"].map(lambda x: linked.get(x, 0))
-    common.table(rm, ["id", "categoria", "riesgo", "consecuencia", "probabilidad", "impacto", "nivel", "responsable",
-                      "preventivo", "respuesta", "decisiones"],
-                 rename={"id": "ID", "categoria": "Categoría", "riesgo": "Riesgo", "nivel": "Nivel de riesgo",
+    common.table(rm, ["id", "categoria", "riesgo", "consecuencia", "probabilidad", "impacto", "pxi", "nivel",
+                      "responsable", "preventivo", "respuesta", "decisiones"],
+                 rename={"id": "ID", "categoria": "Categoría", "riesgo": "Riesgo", "consecuencia": "Consecuencia",
+                         "pxi": "P × I", "nivel": "Nivel de riesgo",
                          "preventivo": "Medida preventiva", "respuesta": "Respuesta",
                          "decisiones": "Decisiones vinculadas"},
                  color_cols={"Nivel de riesgo": {"bajo": common.GREEN, "medio": common.AMBER, "alto": common.RED}})

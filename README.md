@@ -9,6 +9,17 @@ recursos tecnológicos y contexto regional, genera alertas **explicables** y doc
 
 Equipo: Germán Carreño · Nathalia Rivera · Alison Vargas
 
+## Caso de estudio
+
+- **Organización de referencia:** Ministerio de Educación de Panamá (MEDUCA).
+- **Decisión modelada:** priorizar centros educativos y casos de estudiantes para recibir apoyo
+  (seguimiento académico, intervenciones y recursos tecnológicos).
+- **Alcance de los datos:** **todos los datos que procesa el sistema son sintéticos** y cubren **premedia y media
+  (7.º a 12.º)**: 16 centros de cada nivel, sin primaria. Las estadísticas públicas de MEDUCA (cuadros 2-12, 3-12 y
+  4-12, año lectivo 2024) son **solo referencia del documento** y **no se cargan al pipeline**. Ver
+  [DATA_SOURCES.md](DATA_SOURCES.md).
+- **Documento del proyecto:** `EDU_ALERTA_SIG_Final_con_niveles.docx` (entregado aparte, 30 de noviembre de 2026).
+
 ---
 
 ## 1. Ejecución rápida (Docker)
@@ -36,14 +47,14 @@ sintéticos y ejecuta el pipeline una vez. Los arranques posteriores reutilizan 
 |---|---|
 | `mongo` | MongoDB 7 (observaciones, alertas, casos, intervenciones, decisiones, auditoría) |
 | `app` | Interfaz Streamlit + bootstrap (SQLite en el volumen `sqlite_data`) |
-| `scheduler` | Ejecución programada del pipeline; la frecuencia se edita en Administración › Reglas |
+| `scheduler` | El ejecutor periódico lanza el pipeline cada 60 minutos (configurable en Administración › Reglas). No modela dependencias entre tareas ni reintentos automáticos |
 | `tests` | Pytest (perfil `test`) contra un MongoDB real |
 | `mongo-express` | Visor web opcional de MongoDB (perfil `tools`, puerto 8081) |
 
 ### Comandos útiles
 
 ```bash
-docker compose --profile test run --rm tests test       # 49 pruebas (unitarias, flujo, integración, dashboard)
+docker compose --profile test run --rm tests test       # 49 pruebas con MongoDB real (unitarias, flujo, integración, dashboard)
 docker compose exec app python -m edualerta.cli pipeline           # ejecutar ETL manualmente
 docker compose exec app python -m edualerta.cli pipeline --force   # reprocesar (prueba de idempotencia)
 docker compose exec app python -m edualerta.cli reset              # restablecer escenario de demostración
@@ -97,10 +108,10 @@ src/edualerta/
   db/mongo.py           conexión, índices únicos (idempotencia), modo degradado
   etl/extract.py        lectura CSV/JSON/GeoJSON, normalización de encabezados, vista previa
   etl/transform.py      limpieza y reglas de negocio por entidad; rechazos con motivo
-  etl/pipeline.py       orquestador, bitácora, huellas SHA-256, carga de paquetes
+  etl/pipeline.py       secuencia del ETL, bitácora, huellas SHA-256, carga de paquetes
   services/             indicadores, alertas, seguimiento, tecnología, regional, KPI,
                         recomendaciones/decisiones, calidad, auditoría, perfiles, reportes PDF
-  scheduler.py · cli.py ejecución programada y comandos
+  scheduler.py · cli.py ejecutor periódico (sin dependencias ni reintentos) y comandos
 config/                 settings (umbrales, perfiles) · sources · kpis · riesgos
 tests/                  pytest (mongomock + MongoDB real + AppTest de Streamlit)
 ```
@@ -164,5 +175,5 @@ pip install -r requirements.txt -r requirements-dev.txt
 export PYTHONPATH=src SQLITE_PATH=data/db/edualerta.db MONGO_URI=mongodb://localhost:27017
 python -m edualerta.cli bootstrap
 streamlit run app/Inicio.py
-pytest
+pytest      # sin MongoDB real: 48 pruebas aprobadas y 1 omitida (en Docker corren las 49)
 ```

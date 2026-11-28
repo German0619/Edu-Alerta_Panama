@@ -39,8 +39,8 @@ def item(key, higher_is_better=True):
     it = k[key]
     v = it["valor"]
     unit = "%" if it["unidad"] == "%" else ""
-    if v is None:
-        value, unit = "sin dato", ""
+    if v is None:  # denominador cero (p. ej., sin casos) = «No aplica»; fuente caída = «sin dato»
+        value, unit = ("No aplica" if it["denominador"] == 0 else "sin dato"), ""
     else:
         value = f"{v:.1f}" if it["unidad"] == "%" else (f"{v:.2f}" if isinstance(v, float) else f"{v}")
     delta, good = None, None

@@ -6,7 +6,10 @@
 **Sector:** Educación\
 **Equipo:** Germán Carreño, Nathalia Rivera y Alison Vargas\
 **Nota:** La profesora autorizó expresamente que el equipo esté
-conformado por tres integrantes.
+conformado por tres integrantes, y el prototipo se diseñó para esos
+3 integrantes. Los roles del sistema (Dirección / Planificación,
+Seguimiento académico y Tecnología) corresponden a los de la
+organización simulada, no a cargos reales de MEDUCA.
 
 ------------------------------------------------------------------------
 

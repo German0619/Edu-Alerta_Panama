@@ -228,7 +228,8 @@ with t4:
     vals = kpi.compute(conn, common.db(), f["periodo"], rules, f["regiones"], f["centros"], f["grados"])
     for key, d in cat.items():
         v = vals[key]
-        val = "sin dato" if v["valor"] is None else f"{v['valor']} {d['unidad']}"
+        val = (("No aplica" if v["denominador"] == 0 else "sin dato") if v["valor"] is None
+               else f"{v['valor']} {d['unidad']}")
         with st.expander(f"{d['nombre']}: {val}"):
             common.facts([{"k": "Cálculo actual", "v": f"{v['numerador']} / {v['denominador']}"},
                           {"k": "Periodicidad", "v": d["periodicidad"].split(" (")[0]},
